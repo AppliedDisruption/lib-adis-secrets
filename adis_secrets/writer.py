@@ -1,0 +1,61 @@
+import logging
+import os
+
+from adis_secrets.reader import _cache
+
+logger = logging.getLogger(__name__)
+
+
+def write_tenant_token(team_id: str, token_data: dict) -> None:
+    """
+    Write a tenant token to the configured secrets backend.
+    Invalidates the secrets cache after writing.
+    """
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    if backend == "file":
+        from adis_secrets.backends.file import write_tenant_token as _write
+
+        _write(team_id, token_data)
+        _cache.invalidate()
+        logger.info(
+            f"[adis_secrets] wrote token for team_id={team_id} "
+            f"backend=file"
+        )
+    elif backend == "aws":
+        from adis_secrets.backends.aws import write_tenant_token as _write
+
+        _write(team_id, token_data)
+    elif backend == "gcp":
+        from adis_secrets.backends.gcp import write_tenant_token as _write
+
+        _write(team_id, token_data)
+    else:
+        raise ValueError(
+            f"Unknown VAULT_CFG_KEY_BACKEND='{backend}'. "
+            f"Supported: file, aws, gcp"
+        )
+
+
+def get_tenant_token(team_id: str) -> dict | None:
+    """
+    Retrieve a tenant token from the configured secrets backend.
+    Returns None if team_id not found.
+    """
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    if backend == "file":
+        from adis_secrets.backends.file import get_tenant_token as _get
+
+        return _get(team_id)
+    elif backend == "aws":
+        from adis_secrets.backends.aws import get_tenant_token as _get
+
+        return _get(team_id)
+    elif backend == "gcp":
+        from adis_secrets.backends.gcp import get_tenant_token as _get
+
+        return _get(team_id)
+    else:
+        raise ValueError(
+            f"Unknown VAULT_CFG_KEY_BACKEND='{backend}'. "
+            f"Supported: file, aws, gcp"
+        )

@@ -1,0 +1,6 @@
+.secrets/
+*-secrets.env
+tenant_tokens.json
+__pycache__/
+.pytest_cache/
+*.pyc
