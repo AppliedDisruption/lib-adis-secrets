@@ -55,6 +55,12 @@ def get_secret(key: str) -> str:
     Caches with TTL of 300 seconds.
     NEVER logs or prints secret values - only key names.
     """
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    if backend == "infisical":
+        from adis_secrets.backends.infisical import get_secret as _get
+
+        return _get(key)
+
     if _cache.is_stale():
         secrets_file = os.environ.get("CONTAINER_ENV_FILE_APP_SECRETS")
         if not secrets_file:
@@ -70,3 +76,19 @@ def get_secret(key: str) -> str:
             f"{sorted(data.keys())}"
         )
     return _cache.get(key)
+
+
+def set_tenant_context(slug: str):
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    if backend == "infisical":
+        from adis_secrets.backends.infisical import set_tenant_context as _set
+
+        _set(slug)
+
+
+def clear_tenant_context():
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    if backend == "infisical":
+        from adis_secrets.backends.infisical import clear_tenant_context as _clear
+
+        _clear()

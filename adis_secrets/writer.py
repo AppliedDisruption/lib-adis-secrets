@@ -29,10 +29,14 @@ def write_tenant_token(team_id: str, token_data: dict) -> None:
         from adis_secrets.backends.gcp import write_tenant_token as _write
 
         _write(team_id, token_data)
+    elif backend == "infisical":
+        from adis_secrets.backends.infisical import write_tenant_token as _write
+
+        _write(team_id, token_data)
     else:
         raise ValueError(
             f"Unknown VAULT_CFG_KEY_BACKEND='{backend}'. "
-            f"Supported: file, aws, gcp"
+            f"Supported: file, aws, gcp, infisical"
         )
 
 
@@ -54,8 +58,21 @@ def get_tenant_token(team_id: str) -> dict | None:
         from adis_secrets.backends.gcp import get_tenant_token as _get
 
         return _get(team_id)
+    elif backend == "infisical":
+        from adis_secrets.backends.infisical import get_tenant_token as _get
+
+        return _get(team_id)
     else:
         raise ValueError(
             f"Unknown VAULT_CFG_KEY_BACKEND='{backend}'. "
-            f"Supported: file, aws, gcp"
+            f"Supported: file, aws, gcp, infisical"
         )
+
+
+def get_tenant_slug(team_id: str) -> str:
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    if backend == "infisical":
+        from adis_secrets.backends.infisical import get_tenant_slug as _get
+
+        return _get(team_id)
+    return team_id
