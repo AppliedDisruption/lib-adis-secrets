@@ -25,19 +25,14 @@ SLUG_CACHE_TTL = 86400
 def _load_bootstrap_credentials() -> dict:
     """
     Returns the raw credential dict needed to initialise the Infisical client.
-    Currently file-based via CONTAINER_ENV_FILE_APP_SECRETS.
+    Currently file-based via VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME.
     Replace ONLY this function to switch bootstrap mechanism
     (e.g. DO droplet machine identity, IMDS, Infisical agent).
     Nothing else in this file or any other file should change.
     """
-    secrets_file = os.environ.get("CONTAINER_ENV_FILE_APP_SECRETS")
-    if not secrets_file:
-        raise RuntimeError(
-            "CONTAINER_ENV_FILE_APP_SECRETS is not set. "
-            "This must be injected by deploy_runner.py at container startup."
-        )
-    from adis_secrets.reader import load_env_file
+    from adis_secrets.reader import load_env_file, resolve_bootstrap_secrets_file
 
+    secrets_file = resolve_bootstrap_secrets_file()
     return load_env_file(secrets_file)
 
 

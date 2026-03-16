@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: adis-secrets
+Version: 0.2.1
+Requires-Python: >=3.11
+Requires-Dist: pyyaml
+Requires-Dist: requests
+Provides-Extra: aws
+Requires-Dist: boto3; extra == "aws"
+Provides-Extra: gcp
+Requires-Dist: google-cloud-secret-manager; extra == "gcp"

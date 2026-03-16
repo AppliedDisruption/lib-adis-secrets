@@ -7,6 +7,8 @@ from adis_secrets.reader import (
 )
 from adis_secrets.writer import get_tenant_slug, get_tenant_token, write_tenant_token
 
+__version__ = "0.2.1"
+
 __all__ = [
     "get_secret",
     "load_env_file",

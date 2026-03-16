@@ -1,19 +1,10 @@
 #!/usr/bin/env python3
+# Usage:
+#   APP_PROJECT_NAME=agent-slackbot-multitenant python verify_infisical.py
 import os
 import sys
 import time
 from pathlib import Path
-
-secrets_file = os.environ.get("CONTAINER_ENV_FILE_APP_SECRETS")
-if not secrets_file:
-    print("[ABORT] CONTAINER_ENV_FILE_APP_SECRETS is not set")
-    print(
-        "Run as: "
-        "CONTAINER_ENV_FILE_APP_SECRETS=~/.secrets/project-secrets/"
-        "agent-slackbot-multitenant/test-secrets.env "
-        "python verify_infisical.py"
-    )
-    sys.exit(1)
 
 # verify_infisical.py is a dev tool, not application code.
 # Hardcoded path here is intentional — this script is only ever run locally.
@@ -27,6 +18,7 @@ from adis_secrets import (  # noqa: E402
     load_env_file,
     set_tenant_context,
 )
+from adis_secrets.reader import resolve_bootstrap_secrets_file  # noqa: E402
 from adis_secrets.backends.infisical import (  # noqa: E402
     _get_client,
     get_tenant_context,
@@ -47,7 +39,7 @@ def _abort(idx: int, label: str, detail: str):
     _fmt_line(idx, label, "FAIL", detail)
     print(
         "[ABORT] Fix the above before continuing. Re-run: "
-        "CONTAINER_ENV_FILE_APP_SECRETS=... python verify_infisical.py"
+        "APP_PROJECT_NAME=agent-slackbot-multitenant python verify_infisical.py"
     )
     sys.exit(1)
 
@@ -67,7 +59,10 @@ def _secret_has_value(secret_obj) -> bool:
 
 def main():
     # [1/11]
-    path = Path(secrets_file).expanduser()
+    try:
+        path = Path(resolve_bootstrap_secrets_file())
+    except Exception as exc:
+        _abort(1, "Secrets file readable", f"{type(exc).__name__}: {exc}")
     if not path.exists():
         _abort(1, "Secrets file readable", f"File does not exist: {path}")
     if not os.access(path, os.R_OK):

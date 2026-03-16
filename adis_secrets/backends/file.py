@@ -1,6 +1,5 @@
-# /.secrets/ is bind-mounted by deploy_runner.py.
+# ~/.secrets/ is bind-mounted by deploy_runner.py.
 # Writes here land on the host automatically.
-# CONTAINER_ENV_FILE_APP_SECRETS is the authoritative path source.
 
 import json
 import logging
@@ -13,15 +12,12 @@ logger = logging.getLogger(__name__)
 
 def _token_file_path() -> Path:
     """
-    Derives path from CONTAINER_ENV_FILE_APP_SECRETS.
+    Derives path from the resolved bootstrap secrets file path.
     tenant_tokens.json sits alongside the secrets file.
     """
-    secrets_file = os.environ.get("CONTAINER_ENV_FILE_APP_SECRETS")
-    if not secrets_file:
-        raise EnvironmentError(
-            "CONTAINER_ENV_FILE_APP_SECRETS is not set. "
-            "Cannot derive VAULT_SEC_FILE_TENANT_TOKENS path."
-        )
+    from adis_secrets.reader import resolve_bootstrap_secrets_file
+
+    secrets_file = resolve_bootstrap_secrets_file()
     return Path(os.path.dirname(secrets_file)) / "tenant_tokens.json"
 
 

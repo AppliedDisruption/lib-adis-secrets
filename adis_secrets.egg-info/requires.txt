@@ -1,0 +1,8 @@
+pyyaml
+requests
+
+[aws]
+boto3
+
+[gcp]
+google-cloud-secret-manager

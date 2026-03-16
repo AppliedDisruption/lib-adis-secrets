@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +49,28 @@ def load_env_file(path: str) -> dict:
     return result
 
 
+def resolve_bootstrap_secrets_file() -> str:
+    explicit_path = os.environ.get("VAULT_CFG_KEY_SECRETS_PATH")
+    if explicit_path:
+        resolved_path = Path(explicit_path).expanduser()
+    else:
+        project_name = os.environ.get("APP_PROJECT_NAME")
+        if not project_name:
+            raise EnvironmentError(
+                "Cannot resolve secrets file: set VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME"
+            )
+        resolved_path = Path(f"~/.secrets/{project_name}-secrets.env").expanduser()
+
+    if not resolved_path.exists():
+        raise FileNotFoundError(f"Secrets file not found at {resolved_path}")
+
+    return str(resolved_path)
+
+
 def get_secret(key: str) -> str:
     """
     Read a secret by key.
-    Uses CONTAINER_ENV_FILE_APP_SECRETS env var to find secrets file.
+    Resolves secrets file via VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME.
     Caches with TTL of 300 seconds.
     NEVER logs or prints secret values - only key names.
     """
@@ -62,13 +81,7 @@ def get_secret(key: str) -> str:
         return _get(key)
 
     if _cache.is_stale():
-        secrets_file = os.environ.get("CONTAINER_ENV_FILE_APP_SECRETS")
-        if not secrets_file:
-            raise EnvironmentError(
-                "CONTAINER_ENV_FILE_APP_SECRETS is not set. "
-                "This must be injected by deploy_runner.py "
-                "at container startup."
-            )
+        secrets_file = resolve_bootstrap_secrets_file()
         data = load_env_file(secrets_file)
         _cache.load(data)
         logger.debug(

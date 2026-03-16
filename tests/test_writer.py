@@ -15,13 +15,13 @@ class TestWriter(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.secrets_file = Path(self.temp_dir.name) / "test-secrets.env"
         self.secrets_file.write_text("KEY=VALUE\n")
-        os.environ["CONTAINER_ENV_FILE_APP_SECRETS"] = str(self.secrets_file)
+        os.environ["VAULT_CFG_KEY_SECRETS_PATH"] = str(self.secrets_file)
         os.environ["VAULT_CFG_KEY_BACKEND"] = "file"
         _cache.invalidate()
 
     def tearDown(self):
         self.temp_dir.cleanup()
-        os.environ.pop("CONTAINER_ENV_FILE_APP_SECRETS", None)
+        os.environ.pop("VAULT_CFG_KEY_SECRETS_PATH", None)
         os.environ.pop("VAULT_CFG_KEY_BACKEND", None)
         _cache.invalidate()
 

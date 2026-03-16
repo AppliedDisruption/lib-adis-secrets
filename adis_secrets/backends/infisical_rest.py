@@ -1,7 +1,7 @@
 import requests
 
 # Permitted environment reads in adis_secrets:
-# - CONTAINER_ENV_FILE_APP_SECRETS (bootstrap credentials source)
+# - VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME (bootstrap credentials source)
 # - VAULT_CFG_KEY_BACKEND (backend selector in reader/writer)
 
 

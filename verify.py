@@ -189,16 +189,16 @@ def run_static_layer() -> Counts:
 
     deploy_runner = Path("~/Github/agent-devagent-platform/app/deploy_runner.py").expanduser()
     deploy_runner_text = deploy_runner.read_text(encoding="utf-8") if deploy_runner.exists() else ""
-    if "CONTAINER_ENV_FILE_APP_SECRETS" not in deploy_runner_text:
+    if "APP_PROJECT_NAME" not in deploy_runner_text:
         _check(
             counts,
             True,
-            "static.warn.container_env_file_present",
-            "CONTAINER_ENV_FILE_APP_SECRETS not in deploy_runner.py",
+            "static.warn.app_project_name_present",
+            "APP_PROJECT_NAME not in deploy_runner.py",
             warn=True,
         )
     else:
-        _check(counts, True, "static.warn.container_env_file_present")
+        _check(counts, True, "static.warn.app_project_name_present")
 
     if "VAULT_CFG_KEY_BACKEND" not in deploy_runner_text:
         _check(
@@ -300,14 +300,15 @@ def run_mounts_layer(container: str) -> Counts:
     )
 
     check3 = _run(
-        f"docker exec {container} sh -c \"cat \\$CONTAINER_ENV_FILE_APP_SECRETS | grep -c =\""
+        "docker exec {c} python -c \"from adis_secrets.reader import resolve_bootstrap_secrets_file, load_env_file; "
+        "p = resolve_bootstrap_secrets_file(); print(len(load_env_file(p)))\"".format(c=container)
     )
     count = int((check3.stdout or "0").strip() or "0") if check3.returncode == 0 else 0
     _check(
         counts,
         check3.returncode == 0 and count > 0,
-        "mounts.container_env_file_set",
-        "runtime:0: CONTAINER_ENV_FILE_APP_SECRETS missing or empty",
+        "mounts.bootstrap_file_resolved",
+        "runtime:0: bootstrap secrets file missing or empty",
     )
 
     check4 = _run(f"docker exec {container} sh -c \"echo \\$VAULT_CFG_KEY_BACKEND\"")
@@ -420,7 +421,7 @@ def run_da_layer() -> Counts:
             has_old = any(re.search(p, combined) for p in old_name_patterns)
             ok = (
                 proc.returncode == 0
-                and "CONTAINER_ENV_FILE_APP_SECRETS" in combined
+                and "APP_PROJECT_NAME" in combined
                 and not has_old
             )
         _check(
