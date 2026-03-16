@@ -74,7 +74,12 @@ def get_secret(key: str) -> str:
     Caches with TTL of 300 seconds.
     NEVER logs or prints secret values - only key names.
     """
-    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND")
+    if not backend:
+        raise EnvironmentError(
+            "VAULT_CFG_KEY_BACKEND is not set. "
+            "Set it to 'infisical' (recommended) or 'file' (local dev only)."
+        )
     if backend == "infisical":
         from adis_secrets.backends.infisical import get_secret as _get
 
@@ -92,7 +97,12 @@ def get_secret(key: str) -> str:
 
 
 def set_tenant_context(slug: str):
-    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND")
+    if not backend:
+        raise EnvironmentError(
+            "VAULT_CFG_KEY_BACKEND is not set. "
+            "Set it to 'infisical' (recommended) or 'file' (local dev only)."
+        )
     if backend == "infisical":
         from adis_secrets.backends.infisical import set_tenant_context as _set
 
@@ -100,7 +110,12 @@ def set_tenant_context(slug: str):
 
 
 def clear_tenant_context():
-    backend = os.environ.get("VAULT_CFG_KEY_BACKEND", "file")
+    backend = os.environ.get("VAULT_CFG_KEY_BACKEND")
+    if not backend:
+        raise EnvironmentError(
+            "VAULT_CFG_KEY_BACKEND is not set. "
+            "Set it to 'infisical' (recommended) or 'file' (local dev only)."
+        )
     if backend == "infisical":
         from adis_secrets.backends.infisical import clear_tenant_context as _clear
 

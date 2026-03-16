@@ -11,6 +11,7 @@ from adis_secrets.reader import _cache, get_secret
 class TestReader(unittest.TestCase):
     def setUp(self):
         _cache.invalidate()
+        os.environ["VAULT_CFG_KEY_BACKEND"] = "file"
         os.environ.pop("VAULT_CFG_KEY_SECRETS_PATH", None)
         os.environ.pop("APP_PROJECT_NAME", None)
 
