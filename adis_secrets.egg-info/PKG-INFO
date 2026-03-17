@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: adis-secrets
-Version: 0.2.1
+Version: 0.2.2
 Requires-Python: >=3.11
 Requires-Dist: pyyaml
 Requires-Dist: requests

@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 from adis_secrets.reader import _cache
 
@@ -91,3 +92,15 @@ def get_tenant_slug(team_id: str) -> str:
 
         return _get(team_id)
     return team_id
+
+
+def set_env(key: str, value: str) -> None:
+    """Set an environment variable."""
+    os.environ[key] = value
+
+
+def write_file(path: str | Path, content: str) -> None:
+    """Write string content to a file."""
+    if isinstance(path, str):
+        path = Path(path)
+    path.expanduser().write_text(content)

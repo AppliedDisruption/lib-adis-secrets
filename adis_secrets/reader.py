@@ -50,11 +50,11 @@ def load_env_file(path: str) -> dict:
 
 
 def resolve_bootstrap_secrets_file() -> str:
-    explicit_path = os.environ.get("VAULT_CFG_KEY_SECRETS_PATH")
+    explicit_path = get_env("VAULT_CFG_KEY_SECRETS_PATH")
     if explicit_path:
         resolved_path = Path(explicit_path).expanduser()
     else:
-        project_name = os.environ.get("APP_PROJECT_NAME")
+        project_name = get_env("APP_PROJECT_NAME")
         if not project_name:
             raise EnvironmentError(
                 "Cannot resolve secrets file: set VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME"
@@ -74,7 +74,7 @@ def get_secret(key: str) -> str:
     Caches with TTL of 300 seconds.
     NEVER logs or prints secret values - only key names.
     """
-    backend = os.environ.get("VAULT_CFG_KEY_BACKEND")
+    backend = get_env("VAULT_CFG_KEY_BACKEND")
     if not backend:
         raise EnvironmentError(
             "VAULT_CFG_KEY_BACKEND is not set. "
@@ -97,7 +97,7 @@ def get_secret(key: str) -> str:
 
 
 def set_tenant_context(slug: str):
-    backend = os.environ.get("VAULT_CFG_KEY_BACKEND")
+    backend = get_env("VAULT_CFG_KEY_BACKEND")
     if not backend:
         raise EnvironmentError(
             "VAULT_CFG_KEY_BACKEND is not set. "
@@ -110,7 +110,7 @@ def set_tenant_context(slug: str):
 
 
 def clear_tenant_context():
-    backend = os.environ.get("VAULT_CFG_KEY_BACKEND")
+    backend = get_env("VAULT_CFG_KEY_BACKEND")
     if not backend:
         raise EnvironmentError(
             "VAULT_CFG_KEY_BACKEND is not set. "
@@ -120,3 +120,20 @@ def clear_tenant_context():
         from adis_secrets.backends.infisical import clear_tenant_context as _clear
 
         _clear()
+
+
+def get_env(key: str, default: str | None = None) -> str | None:
+    """Read an environment variable."""
+    return os.environ.get(key, default)
+
+
+def get_all_env() -> dict[str, str]:
+    """Return a copy of the entire environment."""
+    return dict(os.environ)
+
+
+def read_file(path: str | Path) -> str:
+    """Read the contents of a file as a string."""
+    if isinstance(path, str):
+        path = Path(path)
+    return path.expanduser().read_text()

@@ -4,10 +4,19 @@ from adis_secrets.reader import (
     get_secret,
     load_env_file,
     set_tenant_context,
+    get_env,
+    get_all_env,
+    read_file,
 )
-from adis_secrets.writer import get_tenant_slug, get_tenant_token, write_tenant_token
+from adis_secrets.writer import (
+    get_tenant_slug,
+    get_tenant_token,
+    write_tenant_token,
+    set_env,
+    write_file,
+)
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 __all__ = [
     "get_secret",
@@ -18,4 +27,9 @@ __all__ = [
     "write_tenant_token",
     "get_tenant_token",
     "get_tenant_slug",
+    "get_env",
+    "get_all_env",
+    "read_file",
+    "set_env",
+    "write_file",
 ]

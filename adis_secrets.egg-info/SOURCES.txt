@@ -15,6 +15,8 @@ adis_secrets/backends/file.py
 adis_secrets/backends/gcp.py
 adis_secrets/backends/infisical.py
 adis_secrets/backends/infisical_rest.py
+adis_secrets/utils/infisical_client.py
+adis_secrets/utils/infisical_test.py
 tests/test_backends.py
 tests/test_config.py
 tests/test_path_contexts.py
