@@ -56,12 +56,12 @@ def _get_env_unchecked(key: str, default: str | None = None) -> str | None:
     return os.environ.get(key, default)
 
 
-def resolve_bootstrap_secrets_file() -> str:
+def resolve_bootstrap_secrets_file(project_name: str | None = None) -> str:
     explicit_path = _get_env_unchecked("VAULT_CFG_KEY_SECRETS_PATH")
     if explicit_path:
         resolved_path = Path(explicit_path).expanduser()
     else:
-        project_name = _get_env_unchecked("APP_PROJECT_NAME")
+        project_name = project_name or _get_env_unchecked("APP_PROJECT_NAME")
         if not project_name:
             raise EnvironmentError(
                 "Cannot resolve secrets file: set VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME"

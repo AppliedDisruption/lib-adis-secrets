@@ -38,7 +38,8 @@ SECRET_CACHE_TTL = 300
 SLUG_CACHE_TTL = 86400
 
 
-def _load_bootstrap_credentials() -> dict:
+# To this:
+def _load_bootstrap_credentials(project_name: str) -> dict:
     """
     Returns the raw credential dict needed to initialise the Infisical client.
     Currently file-based via VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME.
@@ -47,9 +48,9 @@ def _load_bootstrap_credentials() -> dict:
     Nothing else in this file or any other file should change.
     """
     from adis_secrets.reader import load_env_file, resolve_bootstrap_secrets_file
-
-    secrets_file = resolve_bootstrap_secrets_file()
+    secrets_file = resolve_bootstrap_secrets_file(project_name=project_name)
     return load_env_file(secrets_file)
+
 
 
 def _required_config(key: str) -> str:
@@ -66,7 +67,7 @@ def init_client(project_name: str, manifest_path: str):
         _active_client_var.set(_client_registry[project_name])
         return
 
-    creds = _load_bootstrap_credentials()
+    creds = _load_bootstrap_credentials(project_name)
     client_id = creds.get("VAULT_SEC_KEY_INFISICAL_CLIENT_ID")
     client_secret = creds.get("VAULT_SEC_KEY_INFISICAL_CLIENT_SECRET")
     if not client_id:
