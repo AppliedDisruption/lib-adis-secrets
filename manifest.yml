@@ -1,0 +1,20 @@
+version: 1
+project: adis-secrets
+
+env:
+  - key: VAULT_CFG_KEY_BACKEND
+  - key: VAULT_CFG_KEY_MANIFEST_PATH
+  - key: VAULT_CFG_KEY_SECRETS_PATH
+  - key: APP_PROJECT_NAME
+  - key: HOME
+  - key: PATH
+  - key: VAULT_SEC_KEY_INFISICAL_CLIENT_ID
+  - key: VAULT_SEC_KEY_INFISICAL_CLIENT_SECRET
+
+files:
+  - path: ~/.secrets/
+    access: read
+    type: directory_prefix
+  - path: /run/secrets/
+    access: read
+    type: directory_prefix

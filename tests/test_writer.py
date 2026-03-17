@@ -5,9 +5,15 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
+from unittest.mock import Mock
 
 from adis_secrets.reader import _cache, get_secret
 from adis_secrets.writer import get_tenant_token, write_tenant_token
+from adis_secrets.manifest import _reset_manifest_cache
+from adis_secrets.backends.infisical import (
+    VaultClient, _client_registry, _active_client_var, _reset_client_registry
+)
+
 
 
 class TestWriter(unittest.TestCase):
@@ -17,13 +23,37 @@ class TestWriter(unittest.TestCase):
         self.secrets_file.write_text("KEY=VALUE\n")
         os.environ["VAULT_CFG_KEY_SECRETS_PATH"] = str(self.secrets_file)
         os.environ["VAULT_CFG_KEY_BACKEND"] = "file"
+        
+        self.manifest_fd, self.manifest_path = tempfile.mkstemp(text=True)
+        with os.fdopen(self.manifest_fd, "w") as f:
+            f.write("""version: 1
+project: test
+secrets:
+  - key: KEY
+  - pattern: \"T0*\"
+    note: \"test tokens\"
+""")
+        os.environ["VAULT_CFG_KEY_MANIFEST_PATH"] = self.manifest_path
+        
         _cache.invalidate()
+        _reset_manifest_cache()
+        _reset_client_registry()
+
+        # Explicit client init — no legacy fallback needed
+        vc = VaultClient(project_name="test", manifest_path=self.manifest_path)
+        vc._client = Mock()  # InfisicalClient not needed for file backend tests
+        _client_registry["test"] = vc
+        _active_client_var.set(vc)
 
     def tearDown(self):
         self.temp_dir.cleanup()
+        os.remove(self.manifest_path)
+        os.environ.pop("VAULT_CFG_KEY_MANIFEST_PATH", None)
         os.environ.pop("VAULT_CFG_KEY_SECRETS_PATH", None)
         os.environ.pop("VAULT_CFG_KEY_BACKEND", None)
         _cache.invalidate()
+        _reset_manifest_cache()
+        _reset_client_registry()
 
     def _token_file(self) -> Path:
         return Path(self.temp_dir.name) / "tenant_tokens.json"

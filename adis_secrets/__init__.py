@@ -1,4 +1,6 @@
+from adis_secrets.backends.infisical import init_client
 from adis_secrets.config import get_config
+from adis_secrets.manifest import get_manifest
 from adis_secrets.reader import (
     clear_tenant_context,
     get_secret,
@@ -19,6 +21,7 @@ from adis_secrets.writer import (
 __version__ = "0.2.2"
 
 __all__ = [
+    "init_client",
     "get_secret",
     "load_env_file",
     "get_config",
@@ -32,4 +35,5 @@ __all__ = [
     "read_file",
     "set_env",
     "write_file",
+    "get_manifest",
 ]

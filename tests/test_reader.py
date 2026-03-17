@@ -4,16 +4,57 @@ import os
 import tempfile
 import unittest
 from unittest import mock
+from unittest.mock import Mock
 
 from adis_secrets.reader import _cache, get_secret
+from adis_secrets.manifest import _reset_manifest_cache
+from adis_secrets.backends.infisical import (
+    VaultClient, _client_registry, _active_client_var, _reset_client_registry
+)
 
 
 class TestReader(unittest.TestCase):
     def setUp(self):
         _cache.invalidate()
+        _reset_manifest_cache()
+        _reset_client_registry()
+        
+        # Create a dummy test manifest
+        self.manifest_fd, self.manifest_path = tempfile.mkstemp(text=True)
+        with os.fdopen(self.manifest_fd, "w") as f:
+            f.write("""version: 1
+project: test
+secrets:
+  - key: KEY
+  - key: SECRET_KEY
+  - key: MISSING
+env:
+  - key: VAULT_CFG_KEY_BACKEND
+  - key: VAULT_CFG_KEY_SECRETS_PATH
+  - key: APP_PROJECT_NAME
+  - key: VAULT_CFG_KEY_MANIFEST_PATH
+files:
+  - path: /tmp/
+    access: read
+    type: directory_prefix
+  - path: /var/folders/
+    access: read
+    type: directory_prefix
+""")
+            
+        os.environ["VAULT_CFG_KEY_MANIFEST_PATH"] = self.manifest_path
         os.environ["VAULT_CFG_KEY_BACKEND"] = "file"
         os.environ.pop("VAULT_CFG_KEY_SECRETS_PATH", None)
         os.environ.pop("APP_PROJECT_NAME", None)
+
+        # Explicit client init — no legacy fallback needed
+        vc = VaultClient(project_name="test", manifest_path=self.manifest_path)
+        vc._client = Mock()  # InfisicalClient not needed for file backend tests
+        _client_registry["test"] = vc
+        _active_client_var.set(vc)
+
+    def tearDown(self):
+        os.remove(self.manifest_path)
 
     def _write_env_file(self, content: str) -> str:
         fd, path = tempfile.mkstemp(text=True)
@@ -57,6 +98,9 @@ class TestReader(unittest.TestCase):
         path = self._write_env_file("KEY=VALUE\n")
         os.environ["VAULT_CFG_KEY_SECRETS_PATH"] = path
 
+        from adis_secrets.manifest import get_manifest
+        get_manifest()
+
         with mock.patch("builtins.open", wraps=open) as mocked_open:
             self.assertEqual(get_secret("KEY"), "VALUE")
             self.assertEqual(get_secret("KEY"), "VALUE")
@@ -66,6 +110,9 @@ class TestReader(unittest.TestCase):
     def test_cache_refreshes_after_ttl(self):
         path = self._write_env_file("KEY=VALUE\n")
         os.environ["VAULT_CFG_KEY_SECRETS_PATH"] = path
+
+        from adis_secrets.manifest import get_manifest
+        get_manifest()
 
         with mock.patch("builtins.open", wraps=open) as mocked_open:
             self.assertEqual(get_secret("KEY"), "VALUE")
@@ -79,7 +126,7 @@ class TestReader(unittest.TestCase):
         os.environ.pop("VAULT_CFG_KEY_SECRETS_PATH", None)
         os.environ.pop("APP_PROJECT_NAME", None)
         with self.assertRaises(EnvironmentError) as ctx:
-            get_secret("ANY")
+            get_secret("KEY")
         self.assertIn(
             "Cannot resolve secrets file: set VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME",
             str(ctx.exception),

@@ -1,10 +1,13 @@
 import logging
 import os
+import re
 import time
 from pathlib import Path
+from fnmatch import fnmatch
+
+from adis_secrets.manifest import get_manifest
 
 logger = logging.getLogger(__name__)
-
 
 class SecretsCache:
     TTL_SECONDS: int = 300
@@ -49,12 +52,16 @@ def load_env_file(path: str) -> dict:
     return result
 
 
+def _get_env_unchecked(key: str, default: str | None = None) -> str | None:
+    return os.environ.get(key, default)
+
+
 def resolve_bootstrap_secrets_file() -> str:
-    explicit_path = get_env("VAULT_CFG_KEY_SECRETS_PATH")
+    explicit_path = _get_env_unchecked("VAULT_CFG_KEY_SECRETS_PATH")
     if explicit_path:
         resolved_path = Path(explicit_path).expanduser()
     else:
-        project_name = get_env("APP_PROJECT_NAME")
+        project_name = _get_env_unchecked("APP_PROJECT_NAME")
         if not project_name:
             raise EnvironmentError(
                 "Cannot resolve secrets file: set VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME"
@@ -67,6 +74,58 @@ def resolve_bootstrap_secrets_file() -> str:
     return str(resolved_path)
 
 
+def _check_key_access(section: str, key: str):
+    manifest = get_manifest()
+    entries = manifest.get(section, [])
+    if not isinstance(entries, list):
+        entries = []
+    
+    for entry in entries:
+        if "key" in entry and entry["key"] == key:
+            return
+            
+    for entry in entries:
+        if "pattern" in entry and fnmatch(key, entry["pattern"]):
+            return
+            
+    proj = manifest.get("project", "unknown")
+    raise PermissionError(f"Access denied: '{key}' is not declared in manifest.yml (project: {proj})")
+
+
+def _check_file_access(path: Path):
+    manifest = get_manifest()
+    files = manifest.get("files", [])
+    if not isinstance(files, list):
+        files = []
+        
+    resolved_path = str(path.expanduser().resolve())
+    
+    for entry in files:
+        entry_path = entry.get("path")
+        if not entry_path:
+            continue
+            
+        def replace_var(m):
+            return _get_env_unchecked(m.group(1), "") or ""
+            
+        entry_path_subbed = re.sub(r"\{\{([^}]+)\}\}", replace_var, entry_path)
+        entry_path_resolved = str(Path(entry_path_subbed).expanduser().resolve())
+        if entry_path.endswith("/") and not entry_path_resolved.endswith("/"):
+            entry_path_resolved += "/"
+            
+        entry_type = entry.get("type")
+        if entry_type == "exact":
+            if resolved_path == entry_path_resolved:
+                return
+        elif entry_type == "directory_prefix":
+            if resolved_path.startswith(entry_path_resolved) or resolved_path == entry_path_resolved.rstrip("/"):
+                return
+                
+    proj = manifest.get("project", "unknown")
+    raise PermissionError(f"Access denied: file '{str(path)}' is not declared in manifest.yml (project: {proj})")
+
+
+
 def get_secret(key: str) -> str:
     """
     Read a secret by key.
@@ -74,7 +133,8 @@ def get_secret(key: str) -> str:
     Caches with TTL of 300 seconds.
     NEVER logs or prints secret values - only key names.
     """
-    backend = get_env("VAULT_CFG_KEY_BACKEND")
+    _check_key_access("secrets", key)
+    backend = _get_env_unchecked("VAULT_CFG_KEY_BACKEND")
     if not backend:
         raise EnvironmentError(
             "VAULT_CFG_KEY_BACKEND is not set. "
@@ -97,7 +157,7 @@ def get_secret(key: str) -> str:
 
 
 def set_tenant_context(slug: str):
-    backend = get_env("VAULT_CFG_KEY_BACKEND")
+    backend = _get_env_unchecked("VAULT_CFG_KEY_BACKEND")
     if not backend:
         raise EnvironmentError(
             "VAULT_CFG_KEY_BACKEND is not set. "
@@ -110,7 +170,7 @@ def set_tenant_context(slug: str):
 
 
 def clear_tenant_context():
-    backend = get_env("VAULT_CFG_KEY_BACKEND")
+    backend = _get_env_unchecked("VAULT_CFG_KEY_BACKEND")
     if not backend:
         raise EnvironmentError(
             "VAULT_CFG_KEY_BACKEND is not set. "
@@ -124,6 +184,7 @@ def clear_tenant_context():
 
 def get_env(key: str, default: str | None = None) -> str | None:
     """Read an environment variable."""
+    _check_key_access("env", key)
     return os.environ.get(key, default)
 
 
@@ -136,4 +197,5 @@ def read_file(path: str | Path) -> str:
     """Read the contents of a file as a string."""
     if isinstance(path, str):
         path = Path(path)
+    _check_file_access(path)
     return path.expanduser().read_text()
