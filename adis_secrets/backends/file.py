@@ -4,10 +4,29 @@
 import json
 import logging
 import os
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+_LOCAL_ENVS = {"local", "dev", "test"}
+
+
+def _check_local_only():
+    """File backend is only allowed for local development."""
+    deploy_env = os.environ.get("APP_DEPLOY_ENV", "local").lower()
+    if deploy_env not in _LOCAL_ENVS:
+        raise RuntimeError(
+            f"File backend is not allowed in '{deploy_env}' environment. "
+            "Use VAULT_CFG_KEY_BACKEND=infisical for cloud/SSH deployments."
+        )
+    warnings.warn(
+        "File backend is deprecated and will be removed in a future version. "
+        "Migrate to VAULT_CFG_KEY_BACKEND=infisical.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
 
 def _token_file_path() -> Path:
@@ -22,6 +41,7 @@ def _token_file_path() -> Path:
 
 
 def write_tenant_token(team_id: str, token_data: dict) -> None:
+    _check_local_only()
     path = _token_file_path()
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -47,6 +67,7 @@ def write_tenant_token(team_id: str, token_data: dict) -> None:
 
 
 def get_tenant_token(team_id: str) -> dict | None:
+    _check_local_only()
     path = _token_file_path()
     if not path.exists():
         return None

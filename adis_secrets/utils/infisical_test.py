@@ -1,20 +1,13 @@
-from infisical_client import InfisicalClient
+from adis_secrets.backends.infisical_rest import InfisicalClient
+from adis_secrets.reader import load_env_file, resolve_bootstrap_secrets_file
 
-project_id = [""] * 2
-client_id = [""] * 2
-client_secret = [""] * 2
-root_read_secret = [""] * 2
-app_read_secret = [""] * 2
+_bootstrap = load_env_file(resolve_bootstrap_secrets_file())
 
-
-
-sel = 1
-
-PROJECT_ID = project_id[sel]
-CLIENT_ID = client_id[sel]
-CLIENT_SECRET = client_secret[sel]
-ROOT_READ_SECRET = root_read_secret[sel]
-APP_READ_SECRET = app_read_secret[sel]
+PROJECT_ID = _bootstrap.get("VAULT_CFG_KEY_INFISICAL_PROJECT_ID", "")
+CLIENT_ID = _bootstrap.get("VAULT_SEC_KEY_INFISICAL_CLIENT_ID", "")
+CLIENT_SECRET = _bootstrap.get("VAULT_SEC_KEY_INFISICAL_CLIENT_SECRET", "")
+ROOT_READ_SECRET = "VAULT_SEC_KEY_INFISICAL_CLIENT_ID"
+APP_READ_SECRET = "VAULT_SEC_KEY_ANTHROPIC_API_KEY"
 
 ENVIRONMENTS = ["dev", "staging", "prod"]
 

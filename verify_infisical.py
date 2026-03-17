@@ -91,8 +91,15 @@ def main():
         _abort(2, "Required secrets present", f"Missing keys: {', '.join(missing)}")
     _fmt_line(2, "Required secrets present", "OK")
 
-    # Ensure reader/writer dispatch uses backend from file.
-    os.environ["VAULT_CFG_KEY_BACKEND"] = loaded["VAULT_CFG_KEY_BACKEND"]
+    # JUSTIFIED EXCEPTION: verify_infisical.py is a local-only dev tool.
+    # The adis_secrets library dispatches on VAULT_CFG_KEY_BACKEND from
+    # os.environ — there is no config-only path without a library refactor.
+    # We use setdefault so an already-set value is never overwritten, and
+    # the value comes from the bootstrap file (a config key, not a secret).
+    os.environ.setdefault(
+        "VAULT_CFG_KEY_BACKEND",
+        loaded.get("VAULT_CFG_KEY_BACKEND", "infisical"),
+    )
 
     # [3/11]
     cfg_keys = [

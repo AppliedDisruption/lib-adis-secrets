@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import re
-import tempfile
 import time
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -223,18 +222,6 @@ def _slugify(value: str) -> str:
     return slug or "tenant"
 
 
-def _atomic_payload_text(value: str) -> str:
-    fd, tmp_path = tempfile.mkstemp(prefix="adis_secrets_", suffix=".tmp")
-    final_path = f"{tmp_path}.final"
-    with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
-        tmp_file.write(value)
-    os.replace(tmp_path, final_path)
-    with open(final_path, encoding="utf-8") as final_file:
-        out = final_file.read()
-    os.remove(final_path)
-    return out
-
-
 def write_tenant_token(team_id: str, token_data: dict):
     infisical_environment = _required_config("infisical_environment")
     client = _main_project_client()
@@ -248,7 +235,6 @@ def write_tenant_token(team_id: str, token_data: dict):
         },
         sort_keys=True,
     )
-    payload = _atomic_payload_text(payload)
     client.set_secret(
         name=team_id,
         value=payload,
@@ -271,7 +257,7 @@ def write_tenant_token(team_id: str, token_data: dict):
             current_slugs = {}
 
     current_slugs[team_id] = slug
-    slugs_payload = _atomic_payload_text(json.dumps(current_slugs, sort_keys=True))
+    slugs_payload = json.dumps(current_slugs, sort_keys=True)
     client.set_secret(
         name="TENANT_SLUGS",
         value=slugs_payload,
