@@ -6,11 +6,15 @@ import unittest
 from unittest import mock
 from unittest.mock import Mock
 
+import pytest
+
 from adis_secrets.reader import _cache, get_secret
 from adis_secrets.manifest import _reset_manifest_cache
-from adis_secrets.backends.infisical import (
-    VaultClient, _client_registry, _active_client_var, _reset_client_registry
+from adis_secrets.client import (
+    StartupPhase,
+    VaultClient, _client_registry, _active_client_var, _reset_client_registry,
 )
+import adis_secrets.client as _client_module
 
 
 class TestReader(unittest.TestCase):
@@ -52,6 +56,7 @@ files:
         vc._client = Mock()  # InfisicalClient not needed for file backend tests
         _client_registry["test"] = vc
         _active_client_var.set(vc)
+        _client_module._startup_phase = StartupPhase.READY
 
     def tearDown(self):
         os.remove(self.manifest_path)
@@ -131,3 +136,9 @@ files:
             "Cannot resolve secrets file: set VAULT_CFG_KEY_SECRETS_PATH or APP_PROJECT_NAME",
             str(ctx.exception),
         )
+
+
+def test_get_secret_before_init_raises():
+    _reset_client_registry()
+    with pytest.raises(RuntimeError, match="init_client"):
+        get_secret("VAULT_SEC_KEY_ANYTHING")

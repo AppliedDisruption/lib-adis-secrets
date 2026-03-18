@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from fnmatch import fnmatch
 
+from adis_secrets.client import _assert_ready, clear_tenant_context, set_tenant_context
 from adis_secrets.manifest import get_manifest
 
 logger = logging.getLogger(__name__)
@@ -133,6 +134,7 @@ def get_secret(key: str) -> str:
     Caches with TTL of 300 seconds.
     NEVER logs or prints secret values - only key names.
     """
+    _assert_ready("get_secret")
     _check_key_access("secrets", key)
     backend = _get_env_unchecked("VAULT_CFG_KEY_BACKEND")
     if not backend:
@@ -156,34 +158,11 @@ def get_secret(key: str) -> str:
     return _cache.get(key)
 
 
-def set_tenant_context(slug: str):
-    backend = _get_env_unchecked("VAULT_CFG_KEY_BACKEND")
-    if not backend:
-        raise EnvironmentError(
-            "VAULT_CFG_KEY_BACKEND is not set. "
-            "Set it to 'infisical' (recommended) or 'file' (local dev only)."
-        )
-    if backend == "infisical":
-        from adis_secrets.backends.infisical import set_tenant_context as _set
-
-        _set(slug)
-
-
-def clear_tenant_context():
-    backend = _get_env_unchecked("VAULT_CFG_KEY_BACKEND")
-    if not backend:
-        raise EnvironmentError(
-            "VAULT_CFG_KEY_BACKEND is not set. "
-            "Set it to 'infisical' (recommended) or 'file' (local dev only)."
-        )
-    if backend == "infisical":
-        from adis_secrets.backends.infisical import clear_tenant_context as _clear
-
-        _clear()
 
 
 def get_env(key: str, default: str | None = None) -> str | None:
     """Read an environment variable."""
+    _assert_ready("get_env")
     _check_key_access("env", key)
     return os.environ.get(key, default)
 
@@ -195,6 +174,7 @@ def get_all_env() -> dict[str, str]:
 
 def read_file(path: str | Path) -> str:
     """Read the contents of a file as a string."""
+    _assert_ready("read_file")
     if isinstance(path, str):
         path = Path(path)
     _check_file_access(path)

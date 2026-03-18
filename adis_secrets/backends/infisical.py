@@ -1,44 +1,34 @@
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime, timezone
 from types import SimpleNamespace
-import contextvars
 
 from adis_secrets.backends.infisical_rest import InfisicalClient
+from adis_secrets.client import (
+    StartupPhase,
+    VaultBackend,
+    VaultClient,
+    _active_client_var,
+    _cache_get,
+    _cache_set,
+    _client_registry,
+    _current_tenant_slug_var,
+    _get_active_vault_client,
+    _reset_client_registry,
+    clear_tenant_context,
+    get_tenant_context,
+    SECRET_CACHE_TTL,
+    SLUG_CACHE_TTL,
+    set_tenant_context,
+)
+import adis_secrets.client as _client_module
 from adis_secrets.config import get_config
 
 logger = logging.getLogger(__name__)
 
 
-class VaultClient:
-    def __init__(self, project_name: str, manifest_path: str):
-        self.project_name = project_name
-        self.manifest_path = manifest_path
-        self._client: InfisicalClient | None = None
-        self._secret_cache: dict = {}
-        self._slug_cache: dict | None = None
-        self._slug_cache_loaded_at: float = 0.0
-
-    @property
-    def client(self) -> InfisicalClient:
-        if self._client is None:
-            raise RuntimeError("VaultClient not initialized with credentials")
-        return self._client
-
-
-_client_registry: dict[str, VaultClient] = {}
-_active_client_var: contextvars.ContextVar[VaultClient | None] = contextvars.ContextVar("vault_client", default=None)
-
-_current_tenant_slug_var: contextvars.ContextVar[str | None] = contextvars.ContextVar("tenant_slug", default=None)
-
-SECRET_CACHE_TTL = 300
-SLUG_CACHE_TTL = 86400
-
-
-# To this:
 def _load_bootstrap_credentials(project_name: str) -> dict:
     """
     Returns the raw credential dict needed to initialise the Infisical client.
@@ -52,7 +42,6 @@ def _load_bootstrap_credentials(project_name: str) -> dict:
     return load_env_file(secrets_file)
 
 
-
 def _required_config(key: str) -> str:
     value = get_config(key)
     if value is None or value == "":
@@ -63,35 +52,40 @@ def _required_config(key: str) -> str:
 def init_client(project_name: str, manifest_path: str):
     global _client_registry
 
-    if project_name in _client_registry:
-        _active_client_var.set(_client_registry[project_name])
-        return
-
-    creds = _load_bootstrap_credentials(project_name)
-    client_id = creds.get("VAULT_SEC_KEY_INFISICAL_CLIENT_ID")
-    client_secret = creds.get("VAULT_SEC_KEY_INFISICAL_CLIENT_SECRET")
-    if not client_id:
+    if _client_module._startup_phase in (StartupPhase.INITIALIZING, StartupPhase.READY):
         raise RuntimeError(
-            "Missing required bootstrap credential: "
-            "VAULT_SEC_KEY_INFISICAL_CLIENT_ID"
-        )
-    if not client_secret:
-        raise RuntimeError(
-            "Missing required bootstrap credential: "
-            "VAULT_SEC_KEY_INFISICAL_CLIENT_SECRET"
+            f"init_client() called but system is already in phase '{_client_module._startup_phase.value}'. "
+            "If this is a test, call _reset_client_registry() first."
         )
 
-    vc = VaultClient(project_name=project_name, manifest_path=manifest_path)
-    vc._client = InfisicalClient(
-        project_id=_required_config("infisical_project_id"),
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-    _client_registry[project_name] = vc
-    _active_client_var.set(vc)
+    _client_module._startup_phase = StartupPhase.INITIALIZING
+    try:
+        creds = _load_bootstrap_credentials(project_name)
+        client_id = creds.get("VAULT_SEC_KEY_INFISICAL_CLIENT_ID")
+        client_secret = creds.get("VAULT_SEC_KEY_INFISICAL_CLIENT_SECRET")
+        if not client_id:
+            raise RuntimeError(
+                "Missing required bootstrap credential: "
+                "VAULT_SEC_KEY_INFISICAL_CLIENT_ID"
+            )
+        if not client_secret:
+            raise RuntimeError(
+                "Missing required bootstrap credential: "
+                "VAULT_SEC_KEY_INFISICAL_CLIENT_SECRET"
+            )
 
-
-
+        vc = VaultClient(project_name=project_name, manifest_path=manifest_path)
+        vc._client = InfisicalClient(
+            project_id=_required_config("infisical_project_id"),
+            client_id=client_id,
+            client_secret=client_secret,
+        )
+        _client_registry[project_name] = vc
+        _active_client_var.set(vc)
+        _client_module._startup_phase = StartupPhase.READY
+    except Exception:
+        _client_module._startup_phase = StartupPhase.UNINITIALIZED
+        raise
 
 
 class _SecretsFacade:
@@ -150,51 +144,10 @@ def _get_client():
     return SimpleNamespace(secrets=_SecretsFacade())
 
 
-def _get_active_vault_client() -> VaultClient:
-    active = _active_client_var.get()
-    if active is not None:
-        return active
-    if len(_client_registry) == 1:
-        return next(iter(_client_registry.values()))
-    raise RuntimeError(
-        "No VaultClient is active. Call init_client(project_name, manifest_path) "
-        "before accessing secrets."
-    )
-
-def _reset_client_registry():
-    """Reset client registry and active client ContextVar for testing."""
-    global _client_registry
-    _client_registry = {}
-    _active_client_var.set(None)
-    _current_tenant_slug_var.set(None)
-
-def _cache_get(key: str, folder: str, project_id: str) -> str | None:
+def invalidate_slug_cache():
     vc = _get_active_vault_client()
-    entry = vc._secret_cache.get((key, folder, project_id))
-    if not entry:
-        return None
-    value, loaded_at = entry
-    if (time.time() - loaded_at) > SECRET_CACHE_TTL:
-        vc._secret_cache.pop((key, folder, project_id), None)
-        return None
-    return value
-
-
-def _cache_set(key: str, folder: str, project_id: str, value: str):
-    vc = _get_active_vault_client()
-    vc._secret_cache[(key, folder, project_id)] = (value, time.time())
-
-
-def set_tenant_context(slug: str):
-    _current_tenant_slug_var.set(slug)
-
-
-def clear_tenant_context():
-    _current_tenant_slug_var.set(None)
-
-
-def get_tenant_context() -> str | None:
-    return _current_tenant_slug_var.get()
+    vc._slug_cache = None
+    vc._slug_cache_loaded_at = 0.0
 
 
 def get_secret(key: str) -> str:
@@ -228,12 +181,6 @@ def get_secret(key: str) -> str:
             )
 
     raise KeyError(f"Secret '{key}' not found in folders: {folders_searched}")
-
-
-def invalidate_slug_cache():
-    vc = _get_active_vault_client()
-    vc._slug_cache = None
-    vc._slug_cache_loaded_at = 0.0
 
 
 def get_tenant_slug(team_id: str) -> str:

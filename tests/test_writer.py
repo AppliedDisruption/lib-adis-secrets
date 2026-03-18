@@ -10,9 +10,11 @@ from unittest.mock import Mock
 from adis_secrets.reader import _cache, get_secret
 from adis_secrets.writer import get_tenant_token, write_tenant_token
 from adis_secrets.manifest import _reset_manifest_cache
-from adis_secrets.backends.infisical import (
-    VaultClient, _client_registry, _active_client_var, _reset_client_registry
+from adis_secrets.client import (
+    StartupPhase,
+    VaultClient, _client_registry, _active_client_var, _reset_client_registry,
 )
+import adis_secrets.client as _client_module
 
 
 
@@ -44,6 +46,7 @@ secrets:
         vc._client = Mock()  # InfisicalClient not needed for file backend tests
         _client_registry["test"] = vc
         _active_client_var.set(vc)
+        _client_module._startup_phase = StartupPhase.READY
 
     def tearDown(self):
         self.temp_dir.cleanup()
