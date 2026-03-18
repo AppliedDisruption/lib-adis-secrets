@@ -176,7 +176,7 @@ def get_secret(key: str) -> str:
             logger.info(
                 "[infisical_backend] lookup failed key=%s folder=%s error_type=%s",
                 key,
-                folder,
+                folder, 
                 type(exc).__name__,
             )
 
