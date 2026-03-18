@@ -85,7 +85,7 @@ class InfisicalClient:
             timeout=10,
         )
 
-        if r.status_code == 409:
+        if r.status_code in (400, 409):
             r = requests.patch(
                 f"{self.BASE_URL}/api/v4/secrets/{name}",
                 headers=self._headers(),
