@@ -154,6 +154,8 @@ def _get_active_vault_client() -> VaultClient:
     active = _active_client_var.get()
     if active is not None:
         return active
+    if len(_client_registry) == 1:
+        return next(iter(_client_registry.values()))
     raise RuntimeError(
         "No VaultClient is active. Call init_client(project_name, manifest_path) "
         "before accessing secrets."
