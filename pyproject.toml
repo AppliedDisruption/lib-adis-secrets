@@ -11,3 +11,6 @@ dependencies = ["pyyaml", "requests"]
 [project.optional-dependencies]
 aws = ["boto3"]
 gcp = ["google-cloud-secret-manager"]
+
+[tool.setuptools.packages.find]
+include = ["adis_secrets*"]
