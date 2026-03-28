@@ -1,14 +1,12 @@
 import json
 import logging
 import re
-import time
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from adis_secrets.backends.infisical_rest import InfisicalClient
 from adis_secrets.client import (
     StartupPhase,
-    VaultBackend,
     VaultClient,
     _active_client_var,
     _cache_get,
@@ -16,12 +14,6 @@ from adis_secrets.client import (
     _client_registry,
     _current_tenant_slug_var,
     _get_active_vault_client,
-    _reset_client_registry,
-    clear_tenant_context,
-    get_tenant_context,
-    SECRET_CACHE_TTL,
-    SLUG_CACHE_TTL,
-    set_tenant_context,
 )
 import adis_secrets.client as _client_module
 from adis_secrets.config import get_config
@@ -144,12 +136,6 @@ def _get_client():
     return SimpleNamespace(secrets=_SecretsFacade())
 
 
-def invalidate_slug_cache():
-    vc = _get_active_vault_client()
-    vc._slug_cache = None
-    vc._slug_cache_loaded_at = 0.0
-
-
 def get_secret(key: str) -> str:
     infisical_project_id = _required_config("infisical_project_id")
     infisical_environment = _required_config("infisical_environment")
@@ -183,31 +169,6 @@ def get_secret(key: str) -> str:
     raise KeyError(f"Secret '{key}' not found in folders: {folders_searched}")
 
 
-def get_tenant_slug(team_id: str) -> str:
-    vc = _get_active_vault_client()
-    infisical_environment = _required_config("infisical_environment")
-
-    if vc._slug_cache is None or (time.time() - vc._slug_cache_loaded_at) > SLUG_CACHE_TTL:
-        try:
-            value = _get_active_vault_client().client.get_secret(
-                name="TENANT_SLUGS",
-                environment=infisical_environment,
-                secret_path="/app",
-            )
-            vc._slug_cache = json.loads(value) if value else {}
-            if not isinstance(vc._slug_cache, dict):
-                vc._slug_cache = {}
-        except Exception as exc:
-            logger.info(
-                "[infisical_backend] TENANT_SLUGS load failed folder=/app error_type=%s",
-                type(exc).__name__,
-            )
-            vc._slug_cache = {}
-        vc._slug_cache_loaded_at = time.time()
-
-    return str(vc._slug_cache.get(team_id, team_id))
-
-
 def _slugify(value: str) -> str:
     slug = value.strip().lower()
     slug = re.sub(r"[^a-z0-9]+", "-", slug)
@@ -234,30 +195,6 @@ def write_tenant_token(team_id: str, token_data: dict):
         environment=infisical_environment,
         secret_path="/tenants",
     )
-
-    current_slugs: dict = {}
-    existing = client.get_secret(
-        name="TENANT_SLUGS",
-        environment=infisical_environment,
-        secret_path="/app",
-    )
-    if existing:
-        try:
-            current_slugs = json.loads(existing)
-            if not isinstance(current_slugs, dict):
-                current_slugs = {}
-        except Exception:
-            current_slugs = {}
-
-    current_slugs[team_id] = slug
-    slugs_payload = json.dumps(current_slugs, sort_keys=True)
-    client.set_secret(
-        name="TENANT_SLUGS",
-        value=slugs_payload,
-        environment=infisical_environment,
-        secret_path="/app",
-    )
-    invalidate_slug_cache()
     logger.info("[infisical_backend] wrote tenant token team_id=%s slug=%s", team_id, slug)
 
 

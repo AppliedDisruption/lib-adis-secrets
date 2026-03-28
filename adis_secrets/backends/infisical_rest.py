@@ -69,6 +69,25 @@ class InfisicalClient:
 
         return None
 
+    def list_secret_names(self, environment, secret_path="/"):
+        """Return all secret key names stored at the given path (non-recursive)."""
+        environment = self._normalize_env(environment)
+
+        r = requests.get(
+            f"{self.BASE_URL}/api/v4/secrets",
+            headers=self._headers(),
+            params={
+                "projectId": self.project_id,
+                "environment": environment,
+                "secretPath": secret_path,
+            },
+            timeout=10,
+        )
+
+        r.raise_for_status()
+
+        return [s["secretKey"] for s in r.json()["secrets"]]
+
     def set_secret(self, name, value, environment, secret_path="/"):
         environment = self._normalize_env(environment)
 

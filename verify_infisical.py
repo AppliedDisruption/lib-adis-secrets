@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# LEGACY: This script tests the slug-based routing system (TENANT_SLUGS /
+# get_tenant_slug / set_tenant_context) which has been superseded by direct
+# /tenants/{tenant_id} lookups via TenantSecretsManager. Tests [9]-[10] that
+# exercise get_tenant_slug and set_tenant_context will fail against the current
+# library — they are preserved here for historical reference only.
+#
 # Usage:
 #   APP_PROJECT_NAME=agent-slackbot-multitenant python verify_infisical.py
 import os

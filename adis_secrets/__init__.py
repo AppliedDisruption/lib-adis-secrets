@@ -11,7 +11,6 @@ from adis_secrets.reader import (
     read_file,
 )
 from adis_secrets.writer import (
-    get_tenant_slug,
     get_tenant_token,
     write_tenant_token,
     set_env,
@@ -29,7 +28,6 @@ __all__ = [
     "clear_tenant_context",
     "write_tenant_token",
     "get_tenant_token",
-    "get_tenant_slug",
     "get_env",
     "get_all_env",
     "read_file",

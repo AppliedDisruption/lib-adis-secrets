@@ -66,8 +66,6 @@ class VaultClient:
         self.manifest_path = manifest_path
         self._client: VaultBackend | None = None
         self._secret_cache: dict = {}
-        self._slug_cache: dict | None = None
-        self._slug_cache_loaded_at: float = 0.0
 
     @property
     def client(self) -> VaultBackend:
@@ -118,7 +116,6 @@ def get_tenant_context() -> str | None:
 # ---------------------------------------------------------------------------
 
 SECRET_CACHE_TTL = 300
-SLUG_CACHE_TTL = 86400
 
 
 def _cache_get(key: str, folder: str, project_id: str) -> str | None:

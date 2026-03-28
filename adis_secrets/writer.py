@@ -80,20 +80,6 @@ def get_tenant_token(team_id: str) -> dict | None:
         )
 
 
-def get_tenant_slug(team_id: str) -> str:
-    backend = os.environ.get("VAULT_CFG_KEY_BACKEND")
-    if not backend:
-        raise EnvironmentError(
-            "VAULT_CFG_KEY_BACKEND is not set. "
-            "Set it to 'infisical' (recommended) or 'file' (local dev only)."
-        )
-    if backend == "infisical":
-        from adis_secrets.backends.infisical import get_tenant_slug as _get
-
-        return _get(team_id)
-    return team_id
-
-
 def set_env(key: str, value: str) -> None:
     """Set an environment variable."""
     os.environ[key] = value
